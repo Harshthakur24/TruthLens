@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
+import type { ClipboardEvent } from "react";
+import Image from "next/image";
 import toast, { Toaster } from "react-hot-toast";
-import { Search, Shield, AlertTriangle, CheckCircle, ExternalLink, Sparkles, X } from "lucide-react";
+import { Search, Shield, CheckCircle, ExternalLink, Sparkles, X } from "lucide-react";
 
 type VerifyResponse = {
   claim: string;
@@ -24,7 +26,7 @@ export default function Home() {
   const [result, setResult] = useState<VerifyResponse | null>(null);
   const [images, setImages] = useState<ImageData[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
+
 
   async function verify() {
     setLoading(true);
@@ -61,7 +63,7 @@ export default function Home() {
     });
   }
 
-  async function handlePaste(e: React.ClipboardEvent) {
+  async function handlePaste(e: ClipboardEvent<HTMLTextAreaElement>) {
     const items = e.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
