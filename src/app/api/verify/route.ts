@@ -46,10 +46,13 @@ async function callOpenAI(claim: string): Promise<ProviderResponse> {
 		const data = await res.json();
 		const answer = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? String(data.choices[0].message.content).trim() : '');
 		return { provider: 'openai', answer, latencyMs: Date.now() - start, model: data && data.model };
-	} catch (e: any) {
-		return { provider: 'openai', answer: '', latencyMs: Date.now() - start, error: e && e.message ? e.message : 'error' };
+	} catch (e: unknown) {
+		const msg = e instanceof Error ? e.message : 'error';
+		return { provider: 'openai', answer: '', latencyMs: Date.now() - start, error: msg };
 	}
 }
+
+type GeminiPart = { text: string } | { inline_data: { mime_type: string; data: string } };
 
 async function callGemini(claim: string, responses?: ProviderResponse[], images?: ImagePayload): Promise<ProviderResponse> {
 	const start = Date.now();
@@ -70,7 +73,7 @@ async function callGemini(claim: string, responses?: ProviderResponse[], images?
 		}
 
 
-		const parts: any[] = [ { text: prompt } ];
+		const parts: GeminiPart[] = [ { text: prompt } ];
 		if (images && Array.isArray(images)) {
 			for (const img of images) {
 				if (img && img.data && img.mimeType) {
@@ -96,9 +99,10 @@ async function callGemini(claim: string, responses?: ProviderResponse[], images?
 		
 		const answer = (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text ? String(data.candidates[0].content.parts[0].text).trim() : '');
 		return { provider: 'gemini', answer, latencyMs: Date.now() - start, model }; 
-	} catch (e: any) {
+	} catch (e: unknown) {
 		console.error('Gemini error:', e);
-		return { provider: 'gemini', answer: '', latencyMs: Date.now() - start, error: e && e.message ? e.message : 'error' };
+		const msg = e instanceof Error ? e.message : 'error';
+		return { provider: 'gemini', answer: '', latencyMs: Date.now() - start, error: msg };
 	}
 }
 
@@ -125,8 +129,9 @@ async function callPerplexity(claim: string): Promise<ProviderResponse> {
 		const data = await res.json();
 		const answer = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? String(data.choices[0].message.content).trim() : '');
 		return { provider: 'perplexity', answer, latencyMs: Date.now() - start, model: data && data.model };
-	} catch (e: any) {
-		return { provider: 'perplexity', answer: '', latencyMs: Date.now() - start, error: e && e.message ? e.message : 'error' };
+	} catch (e: unknown) {
+		const msg = e instanceof Error ? e.message : 'error';
+		return { provider: 'perplexity', answer: '', latencyMs: Date.now() - start, error: msg };
 	}
 }
 
@@ -150,8 +155,9 @@ async function callGrok(claim: string): Promise<ProviderResponse> {
 		const data = await res.json();
 		const answer = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content ? String(data.choices[0].message.content).trim() : '');
 		return { provider: 'grok', answer, latencyMs: Date.now() - start, model: data && data.model };
-	} catch (e: any) {
-		return { provider: 'grok', answer: '', latencyMs: Date.now() - start, error: e && e.message ? e.message : 'error' };
+	} catch (e: unknown) {
+		const msg = e instanceof Error ? e.message : 'error';
+		return { provider: 'grok', answer: '', latencyMs: Date.now() - start, error: msg };
 	}
 }
 
@@ -188,10 +194,18 @@ async function researchWithPerplexity(claim: string): Promise<string[]> {
         }
     ];
 
-    const calls = bodies.map(b => withTimeout(fetch('https://api.perplexity.ai/chat/completions', { method: 'POST', headers, body: JSON.stringify(b) }), 30000)
-        .then(r => r.json()).catch(() => null));
-    const results = await Promise.all(calls);
-    const texts = results.map(d => d && d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content ? String(d.choices[0].message.content) : '').join('\n');
+    const calls = bodies.map((b) =>
+        withTimeout(fetch('https://api.perplexity.ai/chat/completions', { method: 'POST', headers, body: JSON.stringify(b) }), 30000)
+            .then((r) => r.json() as Promise<unknown>)
+            .catch(() => null as unknown)
+    );
+    const results: unknown[] = await Promise.all(calls);
+
+    const texts = results.map((d) => {
+        const obj = d as { choices?: Array<{ message?: { content?: string } }> } | null;
+        const content = obj?.choices?.[0]?.message?.content;
+        return content ? String(content) : '';
+    }).join('\n');
     return extractUrls(texts);
 }
 
@@ -214,9 +228,12 @@ export async function POST(req: NextRequest) {
 		const claim: string | undefined = parsed && typeof parsed.claim === 'string' ? parsed.claim : undefined;
 		let images: ImagePayload = undefined;
 		if (Array.isArray(parsed?.images)) {
-			images = parsed.images
-				.map((im: any) => im && im.data && im.mimeType ? { mimeType: String(im.mimeType), data: String(im.data) } as ImagePart : null)
-				.filter(Boolean) as ImagePart[];
+			images = (parsed.images as unknown[])
+				.map((im) => {
+					const obj = im as { mimeType?: unknown; data?: unknown };
+					return (typeof obj?.mimeType === 'string' && typeof obj?.data === 'string') ? { mimeType: obj.mimeType, data: obj.data } as ImagePart : null;
+				})
+				.filter((v): v is ImagePart => v !== null);
 		} else if (parsed?.image && parsed.image.data && parsed.image.mimeType) {
 			images = [ { mimeType: String(parsed.image.mimeType), data: String(parsed.image.data) } ];
 		}
@@ -273,8 +290,9 @@ export async function POST(req: NextRequest) {
 			})),
 			research: researchLinks
 		}, { status: 200 });
-	} catch (e: any) {
+	} catch (e: unknown) {
 		console.error('Verification error:', e);
-		return NextResponse.json({ error: 'verification_failed', detail: e && e.message ? e.message : 'error' }, { status: 500 });
+		const detail = e instanceof Error ? e.message : 'error';
+		return NextResponse.json({ error: 'verification_failed', detail }, { status: 500 });
 	}
 }
