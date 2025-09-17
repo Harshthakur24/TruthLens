@@ -98,21 +98,24 @@ export default function Home() {
         }}
       />
       {/* Header */}
-      <header className="border-b border-black/10">
-        <div className="px-6 py-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 mb-4">
+      <header className="sticky top-0 z-20 border-b border-black/10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+        <div className="px-6">
+          <div className="max-w-4xl mx-auto h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <div className="p-2 bg-black rounded-xl">
-                <Shield className="w-8 h-8 text-white" />
+                <Shield className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-3xl font-bold">TruthLens</h1>
-                <p className="text-sm text-black/60">AI-Powered Misinformation Detection</p>
-              </div>
+              <span className="text-xl font-extrabold tracking-tight">TruthLens</span>
             </div>
-            <p className="text-base text-black/70 max-w-2xl">
-              Detect potential misinformation, verify credibility, and learn how to critically analyze information.
-            </p>
+            <nav className="hidden sm:flex items-center gap-6 text-sm text-black/60">
+              <a className="relative hover:text-black transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-[1px] after:w-0 after:bg-black after:transition-all hover:after:w-full" href="#features">Features</a>
+              <a className="relative hover:text-black transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-[1px] after:w-0 after:bg-black after:transition-all hover:after:w-full" href="#how">How it works</a>
+            </nav>
+          </div>
+        </div>
+        <div className="px-6 pb-4">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-sm text-black/60">Verify claims with a clean, high‑contrast interface.</p>
           </div>
         </div>
       </header>
@@ -171,7 +174,6 @@ export default function Home() {
 
               {/* Input toolbar */}
               <div className="flex items-center justify-between gap-3 mt-2">
-                <div className="text-xs text-black/50">{text.length} chars · Press Enter to verify</div>
                 <div className="flex items-center gap-2">
                   <label className="inline-flex items-center gap-2 px-3 py-2 border border-black/20 rounded-lg text-xs font-medium cursor-pointer hover:bg-black/5 transition-colors">
                     <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFiles(e.target.files || undefined)} />
@@ -183,6 +185,7 @@ export default function Home() {
                     </button>
                   )}
                 </div>
+                <div className="text-xs text-black/50">{text.length} chars · Press Enter to verify</div>
               </div>
 
               {/* Example chips */}
@@ -345,6 +348,16 @@ export default function Home() {
           </section>
         )}
       </main>
+      {/* Footer */}
+      <footer className="mt-8 border-t border-black/10">
+        <div className="max-w-4xl mx-auto px-6 py-6 text-sm text-black/60 flex items-center justify-between">
+          <span>© {new Date().getFullYear()} TruthLens</span>
+          <div className="flex items-center gap-4">
+            <a className="relative hover:text-black transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-[1px] after:w-0 after:bg-black after:transition-all hover:after:w-full" href="#privacy">Privacy</a>
+            <a className="relative hover:text-black transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-[1px] after:w-0 after:bg-black after:transition-all hover:after:w-full" href="#terms">Terms</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
