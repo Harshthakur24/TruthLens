@@ -41,8 +41,9 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error || "Verification failed");
       setResult(data);
       toast.success("Verification completed");
-    } catch (e: any) {
-      toast.error(e?.message || "Verification failed");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Verification failed";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -136,7 +137,7 @@ export default function Home() {
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   {previews.map((src, idx) => (
                     <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-black/10 shadow-sm">
-                      <img src={src} alt={`Attached ${idx + 1}`} className="w-full h-full object-cover" />
+                      <Image src={src} alt={`Attached ${idx + 1}`} fill sizes="64px" className="object-cover" />
                       <button
                         type="button"
                         onClick={() => { setImages((p) => p.filter((_, i) => i !== idx)); setPreviews((p) => p.filter((_, i) => i !== idx)); }}
