@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { ClipboardEvent } from "react";
 import Image from "next/image";
 import toast, { Toaster } from "react-hot-toast";
@@ -27,6 +27,7 @@ export default function Home() {
   const [images, setImages] = useState<ImageData[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
 
+  const resultRef = useRef<HTMLDivElement | null>(null);
 
   async function verify() {
     setLoading(true);
@@ -40,6 +41,12 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Verification failed");
       setResult(data);
+      // Smooth scroll to results
+      requestAnimationFrame(() => {
+        if (resultRef.current) {
+          resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
       toast.success("Verification completed");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Verification failed";
@@ -232,7 +239,7 @@ export default function Home() {
 
         {/* Results */}
         {result && (
-          <section className="space-y-6">
+          <section ref={resultRef} className="space-y-6">
             {/* Verdict */}
             <div className="bg-white rounded-2xl p-8 shadow-sm border border-black/10">
               <div className="flex items-center gap-3 mb-6">
