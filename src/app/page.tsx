@@ -363,6 +363,7 @@ export default function Home() {
                     }}
                     placeholder="Enter any claim to verify... e.g., 'The James Webb Space Telescope detected CO₂ on WASP-39b'"
                     className="w-full min-h-[200px] rounded-2xl border-2 border-gray-200 bg-white/50 backdrop-blur-sm p-6 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 resize-none text-lg leading-relaxed shadow-inner"
+                    suppressHydrationWarning
                   />
                   <div className="absolute bottom-4 right-4 text-xs text-gray-400">
                     {text.length} characters
