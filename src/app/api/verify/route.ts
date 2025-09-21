@@ -49,7 +49,7 @@ type NewsSource = {
 type ImageAnalysis = {
 	reverseSearchResults: string[];
 	tineyeResults: string[];
-	metadata?: any;
+	metadata?: Record<string, unknown>;
 	deepfakeScore?: number;
 };
 
@@ -429,10 +429,10 @@ function getNewsReliability(source: string): 'high' | 'medium' | 'low' {
 }
 
 async function reverseImageSearch(_imageData: string): Promise<string[]> {
-    const apiKey = process.env.GOOGLE_API_KEY;
-    const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
+    const _apiKey = process.env.GOOGLE_API_KEY;
+    const _searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
     
-    if (!apiKey || !searchEngineId) return [];
+    if (!_apiKey || !_searchEngineId) return [];
     
     try {
         // For now, return mock results - in production, you'd use Google Custom Search API with image
@@ -490,7 +490,7 @@ async function analyzeImages(images: ImagePayload): Promise<ImageAnalysis> {
         return {
             reverseSearchResults: [],
             tineyeResults: [],
-            metadata: null,
+            metadata: undefined,
             deepfakeScore: 0
         };
     }
@@ -501,7 +501,7 @@ async function analyzeImages(images: ImagePayload): Promise<ImageAnalysis> {
         return {
             reverseSearchResults,
             tineyeResults: [], // Would integrate TinEye API here
-            metadata: null, // Would extract EXIF data here
+            metadata: undefined, // Would extract EXIF data here
             deepfakeScore: Math.random() * 100 // Mock deepfake detection
         };
     } catch (e) {
@@ -509,7 +509,7 @@ async function analyzeImages(images: ImagePayload): Promise<ImageAnalysis> {
         return {
             reverseSearchResults: [],
             tineyeResults: [],
-            metadata: null,
+            metadata: undefined,
             deepfakeScore: 0
         };
     }

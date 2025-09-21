@@ -35,7 +35,7 @@ export default function Features() {
             color: "from-indigo-500 to-blue-600"
         },
         {
-            icon: <Image className="w-8 h-8" />,
+            icon: <Image className="w-8 h-8" />, // eslint-disable-line jsx-a11y/alt-text
             title: "Image Analysis",
             description: "Reverse image search, deepfake detection, and metadata analysis for visual content verification.",
             color: "from-pink-500 to-rose-600"
