@@ -307,13 +307,13 @@ async function searchGoogleScholar(query: string): Promise<ResearchSource[]> {
         const response = await withTimeout(fetch(`https://serpapi.com/search?engine=google_scholar&q=${encodeURIComponent(query)}&api_key=${apiKey}`), 15000);
         const data = await response.json();
         
-        return (data.organic_results || []).map((result: any) => ({
-            title: result.title || '',
-            authors: result.publication_info?.authors?.map((a: any) => a.name) || [],
-            journal: result.publication_info?.summary || '',
-            year: result.year ? parseInt(result.year) : undefined,
-            url: result.link || '',
-            abstract: result.snippet || '',
+        return (data.organic_results || []).map((result: Record<string, unknown>) => ({
+            title: String(result.title || ''),
+            authors: Array.isArray((result.publication_info as Record<string, unknown>)?.authors) ? ((result.publication_info as Record<string, unknown>).authors as Record<string, unknown>[]).map((a: Record<string, unknown>) => String(a.name || '')) : [],
+            journal: String((result.publication_info as Record<string, unknown>)?.summary || ''),
+            year: result.year ? parseInt(String(result.year)) : undefined,
+            url: String(result.link || ''),
+            abstract: String(result.snippet || ''),
             source: 'scholar' as const
         }));
     } catch (e) {
@@ -333,13 +333,13 @@ async function searchPubMed(query: string): Promise<ResearchSource[]> {
         const summaryResponse = await withTimeout(fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${ids}&retmode=json`), 10000);
         const summaryData = await summaryResponse.json();
         
-        return Object.values(summaryData.result || {}).map((article: any) => ({
-            title: article.title || '',
-            authors: article.authors?.map((a: any) => a.name) || [],
-            journal: article.source || '',
-            year: article.pubdate ? parseInt(article.pubdate.split(' ')[0]) : undefined,
-            url: `https://pubmed.ncbi.nlm.nih.gov/${article.uid}/`,
-            abstract: article.abstract || '',
+        return Object.values(summaryData.result || {}).map((article: unknown) => ({
+            title: String((article as Record<string, unknown>).title || ''),
+            authors: Array.isArray((article as Record<string, unknown>).authors) ? ((article as Record<string, unknown>).authors as Record<string, unknown>[]).map((a: Record<string, unknown>) => String(a.name || '')) : [],
+            journal: String((article as Record<string, unknown>).source || ''),
+            year: (article as Record<string, unknown>).pubdate ? parseInt(String((article as Record<string, unknown>).pubdate).split(' ')[0]) : undefined,
+            url: `https://pubmed.ncbi.nlm.nih.gov/${String((article as Record<string, unknown>).uid || '')}/`,
+            abstract: String((article as Record<string, unknown>).abstract || ''),
             source: 'pubmed' as const
         }));
     } catch (e) {
@@ -404,14 +404,14 @@ async function searchNewsAPI(query: string): Promise<NewsSource[]> {
         
         if (!data.articles || !Array.isArray(data.articles)) return [];
         
-        return data.articles.map((article: any) => ({
-            title: cleanText(article.title || ''),
-            description: cleanText(article.description || ''),
-            url: article.url || '',
-            publishedAt: article.publishedAt || '',
-            source: article.source?.name || '',
-            author: cleanText(article.author || ''),
-            reliability: getNewsReliability(article.source?.name || '')
+        return data.articles.map((article: Record<string, unknown>) => ({
+            title: cleanText(String(article.title || '')),
+            description: cleanText(String(article.description || '')),
+            url: String(article.url || ''),
+            publishedAt: String(article.publishedAt || ''),
+            source: String((article.source as Record<string, unknown>)?.name || ''),
+            author: cleanText(String(article.author || '')),
+            reliability: getNewsReliability(String((article.source as Record<string, unknown>)?.name || ''))
         }));
     } catch (e) {
         console.error('NewsAPI.org error:', e);
@@ -428,7 +428,7 @@ function getNewsReliability(source: string): 'high' | 'medium' | 'low' {
     return 'low';
 }
 
-async function reverseImageSearch(imageData: string): Promise<string[]> {
+async function reverseImageSearch(_imageData: string): Promise<string[]> {
     const apiKey = process.env.GOOGLE_API_KEY;
     const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
     
@@ -448,7 +448,7 @@ async function reverseImageSearch(imageData: string): Promise<string[]> {
 }
 
 async function checkURLSafety(url: string): Promise<URLSafety> {
-    const apiKey = process.env.VIRUSTOTAL_API_KEY;
+    const _apiKey = process.env.VIRUSTOTAL_API_KEY;
     
     try {
         // Check if URL is safe
