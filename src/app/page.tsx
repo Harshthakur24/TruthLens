@@ -269,7 +269,7 @@ export default function Home() {
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">TruthLens</span>
+                <span className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">TruthLens</span>
                 <p className="text-xs text-gray-500 -mt-1">AI Fact Checker</p>
               </div>
             </div>
@@ -299,7 +299,7 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
+      <section className="px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
             Verify Facts or News with
@@ -307,24 +307,24 @@ export default function Home() {
               AI Precision
             </span>
           </h1>
-          <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base text-gray-600 mb-6 max-w-3xl mx-auto leading-relaxed">
             Get instant, multi-source fact verification powered by advanced AI models, authoritative websites, and real-time news analysis.
           </p>
         </div>
       </section>
 
       {/* Main */}
-      <main className="px-4 sm:px-6 lg:px-8 pb-16">
+      <main className="px-4 sm:px-6 lg:px-8 pb-12">
         <div className="max-w-4xl mx-auto">
           {/* Input Section */}
-          <section data-input-section className="relative mb-12">
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-6 sm:p-8 lg:p-10 shadow-xl border border-gray-200/50">
-              <div className="flex items-center gap-4 mb-8">
+          <section data-input-section className="relative mb-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-5 lg:p-6 shadow-xl border border-gray-200/50">
+              <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-lg">
                   <Search className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Verify Your Claim</h2>
+                  <h2 className="text-lg font-bold text-gray-900">Verify Your Claim</h2>
                   <p className="text-gray-600">Enter any statement to get comprehensive fact-checking</p>
                 </div>
               </div>
@@ -362,7 +362,7 @@ export default function Home() {
                       }
                     }}
                     placeholder="Enter any claim to verify... e.g., 'The James Webb Space Telescope detected CO₂ on WASP-39b'"
-                    className="w-full min-h-[200px] rounded-2xl border-2 border-gray-200 bg-white/50 backdrop-blur-sm p-6 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 resize-none text-lg leading-relaxed shadow-inner"
+                    className="w-full min-h-[150px] rounded-xl border-2 border-gray-200 bg-white/50 backdrop-blur-sm p-4 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 resize-none text-sm leading-relaxed shadow-inner"
                     suppressHydrationWarning
                   />
                   <div className="absolute bottom-4 right-4 text-xs text-gray-400">
@@ -438,16 +438,16 @@ export default function Home() {
 
           {/* Loading Animation */}
           {loading && (
-            <section data-loading-section className="mb-12">
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-6 sm:p-8 lg:p-10 shadow-xl border border-gray-200/50">
+            <section data-loading-section className="mb-8">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-5 lg:p-6 shadow-xl border border-gray-200/50">
                 {/* User's Claim Display */}
-                <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 via-purple-50 to-indigo-50 rounded-2xl border border-blue-200/50 shadow-lg">
+                <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 via-purple-50 to-indigo-50 rounded-xl border border-blue-200/50 shadow-lg">
                   <div className="flex items-start gap-4">
                     <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-lg">
                       <Search className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-bold text-xl text-gray-900 mb-3">Verifying Your Claim</h4>
+                      <h4 className="font-bold text-lg text-gray-900 mb-3">Verifying Your Claim</h4>
                       <p className="text-gray-700 font-medium leading-relaxed text-lg">{text}</p>
                     </div>
                   </div>
@@ -473,7 +473,7 @@ export default function Home() {
 
                   {/* Current Stage Display */}
                   <div className="space-y-6">
-                    <h3 className="text-3xl font-bold text-gray-900">
+                    <h3 className="text-xl font-bold text-gray-900">
                       {loadingStages[loadingStage]?.title || "Analyzing..."}
                     </h3>
                     <p className="text-gray-600 max-w-2xl mx-auto font-medium text-lg leading-relaxed">
@@ -515,33 +515,33 @@ export default function Home() {
 
                   {/* Analysis Details */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
-                    <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border border-blue-200 shadow-lg">
-                      <div className="text-4xl mb-4">🤖</div>
+                    <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200 shadow-lg">
+                      <div className="text-2xl mb-3">🤖</div>
                       <h4 className="font-bold text-lg text-blue-900 mb-2">AI Analysis</h4>
                       <p className="text-sm text-blue-700 font-medium">Multiple AI models cross-referencing</p>
                     </div>
-                    <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-2xl border border-green-200 shadow-lg">
-                      <div className="text-4xl mb-4">🌐</div>
+                    <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200 shadow-lg">
+                      <div className="text-2xl mb-3">🌐</div>
                       <h4 className="font-bold text-lg text-green-900 mb-2">Web Sources</h4>
                       <p className="text-sm text-green-700 font-medium">Authoritative websites & news</p>
                     </div>
-                    <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl border border-purple-200 shadow-lg">
-                      <div className="text-4xl mb-4">📚</div>
+                    <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200 shadow-lg">
+                      <div className="text-2xl mb-3">📚</div>
                       <h4 className="font-bold text-lg text-purple-900 mb-2">Research Papers</h4>
                       <p className="text-sm text-purple-700 font-medium">Academic & scientific sources</p>
                     </div>
-                    <div className="p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl border border-orange-200 shadow-lg">
-                      <div className="text-4xl mb-4">📰</div>
+                    <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200 shadow-lg">
+                      <div className="text-2xl mb-3">📰</div>
                       <h4 className="font-bold text-lg text-orange-900 mb-2">News Sources</h4>
                       <p className="text-sm text-orange-700 font-medium">Latest news & reports</p>
                     </div>
-                    <div className="p-6 bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl border border-pink-200 shadow-lg">
-                      <div className="text-4xl mb-4">🖼️</div>
+                    <div className="p-4 bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl border border-pink-200 shadow-lg">
+                      <div className="text-2xl mb-3">🖼️</div>
                       <h4 className="font-bold text-lg text-pink-900 mb-2">Image Analysis</h4>
                       <p className="text-sm text-pink-700 font-medium">Reverse search & deepfake detection</p>
                     </div>
-                    <div className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl border border-indigo-200 shadow-lg">
-                      <div className="text-4xl mb-4">🔗</div>
+                    <div className="p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl border border-indigo-200 shadow-lg">
+                      <div className="text-2xl mb-3">🔗</div>
                       <h4 className="font-bold text-lg text-indigo-900 mb-2">URL Safety</h4>
                       <p className="text-sm text-indigo-700 font-medium">Link verification & archives</p>
                     </div>
@@ -558,27 +558,27 @@ export default function Home() {
 
           {/* Results */}
           {result && (
-            <section ref={resultRef} className="space-y-8">
+            <section ref={resultRef} className="space-y-6">
               {/* Verdict */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-5 sm:p-6 lg:p-7 shadow-xl border border-gray-200/50">
-                <div className="flex items-center gap-4 mb-6">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-5 lg:p-6 shadow-xl border border-gray-200/50">
+                <div className="flex items-center gap-3 mb-4">
                   <div className="p-3 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl shadow-lg">
                     <CheckCircle className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-gray-900">Verification Result</h3>
+                    <h3 className="text-lg font-bold text-gray-900">Verification Result</h3>
                     <p className="text-gray-600">Comprehensive analysis completed</p>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="grid lg:grid-cols-3 gap-6 items-center p-5 bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl border border-gray-200 shadow-lg">
+                <div className="space-y-4">
+                  <div className="grid lg:grid-cols-3 gap-4 items-center p-4 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl border border-gray-200 shadow-lg">
                     {/* Circular truth score */}
                     <div className="flex items-center justify-center">
                       {(() => {
                         const pct = typeof result.truthLikelihood === 'number' ? Math.min(Math.max(result.truthLikelihood, 0), 100) : 50;
-                        const size = 120;
-                        const stroke = 10;
+                        const size = 100;
+                        const stroke = 8;
                         const radius = (size - stroke) / 2;
                         const circumference = 2 * Math.PI * radius;
                         const offset = circumference - (pct / 100) * circumference;
@@ -602,7 +602,7 @@ export default function Home() {
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center">
                               <div className="text-center">
-                                <div className="text-2xl font-bold" style={{ color }}>{pct}%</div>
+                                <div className="text-sm font-bold" style={{ color }}>{pct}%</div>
                                 <div className="text-xs text-gray-600 font-medium">truth score</div>
                               </div>
                             </div>
@@ -651,17 +651,17 @@ export default function Home() {
                         <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
                           <Sparkles className="w-5 h-5 text-white" />
                         </div>
-                        <h4 className="text-lg font-semibold">Multi-Method Verification Analysis</h4>
+                        <h4 className="text-sm font-semibold">Multi-Method Verification Analysis</h4>
                       </div>
 
-                      <div className="grid gap-6">
+                      <div className="grid gap-3">
                         {result.methods.map((method, i) => (
-                          <div key={i} className="p-5 border border-black/10 rounded-2xl bg-gradient-to-br from-white to-gray-50/50 shadow-sm">
-                            <div className="flex items-center justify-between mb-4">
+                          <div key={i} className="p-4 border border-black/10 rounded-xl bg-gradient-to-br from-white to-gray-50/50 shadow-sm">
+                            <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
                                 <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 animate-pulse"></div>
                                 <div>
-                                  <h5 className="font-semibold text-base">
+                                  <h5 className="font-semibold text-sm">
                                     {method.method === 'llm' && '🤖 AI Model Analysis'}
                                     {method.method === 'web' && '🌐 Web Source Verification'}
                                     {method.method === 'research' && '📚 Academic Research Papers'}
@@ -681,7 +681,7 @@ export default function Home() {
                               </div>
                               <div className="flex items-center gap-3">
                                 <div className="text-right">
-                                  <div className="text-xl font-bold text-black">{method.confidence}%</div>
+                                  <div className="text-sm font-bold text-black">{method.confidence}%</div>
                                   <div className="text-xs text-black/60">Confidence</div>
                                 </div>
                                 <div className="w-20 h-3 bg-black/10 rounded-full overflow-hidden">
@@ -832,7 +832,7 @@ export default function Home() {
                             {method.sources.length === 0 && (
                               <div className="text-center py-8">
                                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                                  <span className="text-2xl">
+                                  <span className="text-lg">
                                     {method.method === 'llm' && '🤖'}
                                     {method.method === 'web' && '🌐'}
                                     {method.method === 'research' && '📚'}
@@ -877,23 +877,23 @@ export default function Home() {
                           <div className="p-2 bg-green-500 rounded-lg">
                             <Shield className="w-5 h-5 text-white" />
                           </div>
-                          <h4 className="text-lg font-bold text-gray-900">What Authorized Websites Say</h4>
+                          <h4 className="text-sm font-bold text-gray-900">What Authorized Websites Say</h4>
                         </div>
-                        <div className="grid gap-4">
+                        <div className="grid gap-2">
                           {webSources.map((source, i) => {
                             const webSource = source as WebSource;
                             return (
-                              <div key={i} className="p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
-                                <div className="flex items-start justify-between gap-4 mb-4">
+                              <div key={i} className="p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+                                <div className="flex items-start justify-between gap-2 mb-2">
                                   <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-bold">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">
                                         {webSource.reliability === 'high' ? 'HIGH AUTHORITY' :
                                           webSource.reliability === 'medium' ? 'MEDIUM AUTHORITY' : 'LOW AUTHORITY'}
                                       </span>
-                                      <span className="text-sm text-gray-600 font-medium">{webSource.domain}</span>
+                                      <span className="text-xs text-gray-600 font-medium">{webSource.domain}</span>
                                     </div>
-                                    <h5 className="font-bold text-lg text-gray-900 mb-2">{cleanText(webSource.title)}</h5>
+                                    <h5 className="font-bold text-sm text-gray-900 mb-1">{cleanText(webSource.title)}</h5>
                                   </div>
                                   <a
                                     href={webSource.url}
@@ -959,15 +959,15 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-16 border-t border-gray-200/50 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <footer className="mt-12 border-t border-gray-200/50 bg-white/80 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="md:col-span-2">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-3">
                 <div className="p-2.5 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-lg">
                   <Shield className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">TruthLens</span>
+                <span className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">TruthLens</span>
               </div>
               <p className="text-gray-600 mb-6 max-w-md">
                 AI-powered fact verification platform that helps you distinguish truth from misinformation using advanced machine learning and authoritative sources.
