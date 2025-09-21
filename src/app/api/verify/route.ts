@@ -68,14 +68,6 @@ const SYS_PROMPT = 'You are a fact verification assistant. Given a claim, provid
 	'- A brief rationale with authoritative citations (urls) if possible.\n' +
 	'- Keep it under 120 words.';
 
-// Function to clean text by removing asterisks and other unwanted characters
-function cleanText(text: string): string {
-	if (!text) return '';
-	return text
-		.replace(/\*+/g, '') // Remove all asterisks
-		.replace(/\s+/g, ' ') // Replace multiple spaces with single space
-		.trim(); // Remove leading/trailing whitespace
-}
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 	return new Promise<T>((resolve, reject) => {
@@ -405,12 +397,12 @@ async function searchNewsAPI(query: string): Promise<NewsSource[]> {
         if (!data.articles || !Array.isArray(data.articles)) return [];
         
         return data.articles.map((article: Record<string, unknown>) => ({
-            title: cleanText(String(article.title || '')),
-            description: cleanText(String(article.description || '')),
+            title: String(article.title || ''),
+            description: String(article.description || ''),
             url: String(article.url || ''),
             publishedAt: String(article.publishedAt || ''),
             source: String((article.source as Record<string, unknown>)?.name || ''),
-            author: cleanText(String(article.author || '')),
+            author: String(article.author || ''),
             reliability: getNewsReliability(String((article.source as Record<string, unknown>)?.name || ''))
         }));
     } catch (e) {
@@ -568,10 +560,99 @@ function verdictToTruthPercent(label: 'true'|'false'|'uncertain'): number {
     return 50;
 }
 
+async function handleChatMode(question: string, analysisData: any, chatHistory: any[]): Promise<NextResponse> {
+    const CHAT_SYS_PROMPT = `You are a helpful AI assistant that specializes in fact-checking and verification analysis. You have access to a detailed verification report and can answer questions about it.
+
+Your role is to:
+1. Answer questions about the verification results
+2. Explain confidence scores and methodology
+3. Discuss the reliability of sources
+4. Provide insights about conflicting information
+5. Suggest additional verification steps if needed
+
+Be helpful, accurate, and cite specific information from the verification report when relevant. Keep responses concise but informative.`;
+
+    // Build context from analysis data
+    const context = `
+VERIFICATION REPORT CONTEXT:
+Original Claim: "${analysisData.claim}"
+Verdict: ${analysisData.result.verdictLabel || 'uncertain'}
+Confidence Score: ${analysisData.result.truthLikelihood || 'N/A'}%
+Final Verdict: ${analysisData.result.verdict || 'No verdict available'}
+
+VERIFICATION METHODS USED:
+${analysisData.result.methods?.map((method: any, i: number) => 
+  `Method ${i + 1} (${method.method}): ${method.summary}`
+).join('\n') || 'No methods available'}
+
+SOURCES FOUND:
+${analysisData.result.methods?.map((method: any) => 
+  method.sources?.map((source: any) => 
+    `- ${source.title || source.url} (${source.domain || source.source || 'Unknown'})`
+  ).join('\n') || ''
+).join('\n') || 'No sources available'}
+`;
+
+    // Build chat history context
+    const historyContext = chatHistory.length > 0 ? 
+      `\n\nRECENT CONVERSATION:\n${chatHistory.slice(-6).map((msg: any) => 
+        `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+      ).join('\n')}` : '';
+
+    const prompt = `${CHAT_SYS_PROMPT}\n\n${context}${historyContext}\n\nCurrent Question: ${question}`;
+
+    try {
+        // Try OpenAI first, then Gemini as fallback
+        let response = '';
+        
+        try {
+            const openaiResponse = await callOpenAI(prompt);
+            if (openaiResponse.answer && !openaiResponse.error) {
+                response = openaiResponse.answer;
+            }
+        } catch (e) {
+            console.log('OpenAI chat failed, trying Gemini...');
+        }
+
+        if (!response) {
+            try {
+                const geminiResponse = await callGemini(prompt);
+                if (geminiResponse.answer && !geminiResponse.error) {
+                    response = geminiResponse.answer;
+                }
+            } catch (e) {
+                console.log('Gemini chat also failed');
+            }
+        }
+
+        if (!response) {
+            // Fallback response if all AI calls fail
+            response = `I apologize, but I'm having trouble processing your question about the verification of "${analysisData.claim}". The analysis shows a ${analysisData.result.truthLikelihood || 'N/A'}% confidence score with a verdict of "${analysisData.result.verdictLabel || 'uncertain'}". Please try rephrasing your question or check if the verification data is available.`;
+        }
+
+        return NextResponse.json({
+            chatResponse: response,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('Chat mode error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        return NextResponse.json(
+            { error: 'Chat processing failed', detail: errorMessage },
+            { status: 500 }
+        );
+    }
+}
+
 export async function POST(req: NextRequest) {
 	try {
 		const parsed = await req.json();
 		const claim: string | undefined = parsed && typeof parsed.claim === 'string' ? parsed.claim : undefined;
+		const chatMode: boolean = parsed?.chatMode === true;
+		const analysisData: any = parsed?.analysisData;
+		const chatHistory: any[] = parsed?.chatHistory || [];
 		let images: ImagePayload = undefined;
 		if (Array.isArray(parsed?.images)) {
 			images = (parsed.images as unknown[])
@@ -587,7 +668,13 @@ export async function POST(req: NextRequest) {
 			return NextResponse.json({ error: 'claim is required' }, { status: 400 });
 		}
 
-		console.log('Starting 3-method verification for claim:', claim);
+		// Handle chat mode - respond to follow-up questions
+		if (chatMode && analysisData) {
+			console.log('Chat mode: Processing follow-up question:', claim);
+			return await handleChatMode(claim, analysisData, chatHistory);
+		}
+
+		console.log('Starting 6-method verification for claim:', claim);
 
 		// METHOD 1: LLM Analysis
 		console.log('Method 1: LLM Analysis...');

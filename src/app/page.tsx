@@ -68,6 +68,13 @@ type VerifyResponse = {
 
 type ImageData = { mimeType: string; data: string };
 
+type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+};
+
 
 function cleanText(text: string): string {
   if (!text) return '';
@@ -85,6 +92,10 @@ export default function Home() {
   const [images, setImages] = useState<ImageData[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
 
   const resultRef = useRef<HTMLDivElement | null>(null);
 
@@ -194,6 +205,30 @@ export default function Home() {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       setResult(data);
+
+      // Store result in localStorage for chat context
+      const analysisData = {
+        claim: text,
+        result: data,
+        timestamp: new Date().toISOString(),
+        id: Date.now().toString()
+      };
+      localStorage.setItem('truthlens_latest_analysis', JSON.stringify(analysisData));
+
+      // Initialize chat with the verification result
+      const initialChatMessage: ChatMessage = {
+        id: 'initial-' + Date.now(),
+        role: 'assistant',
+        content: `I've completed the verification of your claim: "${text}". The analysis shows it's ${data.verdictLabel === 'true' ? 'likely true' : data.verdictLabel === 'false' ? 'likely false' : 'uncertain'} with a ${data.truthLikelihood}% confidence score. You can ask me any follow-up questions about this analysis!`,
+        timestamp: new Date()
+      };
+      setChatMessages([initialChatMessage]);
+
+      // Auto-show chat interface after verification
+      setTimeout(() => {
+        setShowChat(true);
+      }, 2000);
+
       // Smooth scroll to results
       requestAnimationFrame(() => {
         if (resultRef.current) {
@@ -239,6 +274,65 @@ export default function Home() {
           break;
         }
       }
+    }
+  }
+
+  async function handleChatSubmit() {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage: ChatMessage = {
+      id: 'user-' + Date.now(),
+      role: 'user',
+      content: chatInput.trim(),
+      timestamp: new Date()
+    };
+
+    setChatMessages(prev => [...prev, userMessage]);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      // Get stored analysis data
+      const storedData = localStorage.getItem('truthlens_latest_analysis');
+      if (!storedData) {
+        throw new Error('No analysis data found');
+      }
+
+      const analysisData = JSON.parse(storedData);
+
+      // Send follow-up question to existing verify API
+      const response = await fetch("/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          claim: chatInput.trim(),
+          chatMode: true,
+          analysisData: analysisData,
+          chatHistory: chatMessages
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Chat failed");
+
+      const assistantMessage: ChatMessage = {
+        id: 'assistant-' + Date.now(),
+        role: 'assistant',
+        content: data.chatResponse || data.verdict || "I couldn't process your question.",
+        timestamp: new Date()
+      };
+
+      setChatMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      const errorMessage: ChatMessage = {
+        id: 'error-' + Date.now(),
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setChatLoading(false);
     }
   }
 
@@ -513,39 +607,6 @@ export default function Home() {
                     ))}
                   </div>
 
-                  {/* Analysis Details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
-                    <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200 shadow-lg">
-                      <div className="text-2xl mb-3">🤖</div>
-                      <h4 className="font-bold text-lg text-blue-900 mb-2">AI Analysis</h4>
-                      <p className="text-sm text-blue-700 font-medium">Multiple AI models cross-referencing</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200 shadow-lg">
-                      <div className="text-2xl mb-3">🌐</div>
-                      <h4 className="font-bold text-lg text-green-900 mb-2">Web Sources</h4>
-                      <p className="text-sm text-green-700 font-medium">Authoritative websites & news</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200 shadow-lg">
-                      <div className="text-2xl mb-3">📚</div>
-                      <h4 className="font-bold text-lg text-purple-900 mb-2">Research Papers</h4>
-                      <p className="text-sm text-purple-700 font-medium">Academic & scientific sources</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200 shadow-lg">
-                      <div className="text-2xl mb-3">📰</div>
-                      <h4 className="font-bold text-lg text-orange-900 mb-2">News Sources</h4>
-                      <p className="text-sm text-orange-700 font-medium">Latest news & reports</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl border border-pink-200 shadow-lg">
-                      <div className="text-2xl mb-3">🖼️</div>
-                      <h4 className="font-bold text-lg text-pink-900 mb-2">Image Analysis</h4>
-                      <p className="text-sm text-pink-700 font-medium">Reverse search & deepfake detection</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl border border-indigo-200 shadow-lg">
-                      <div className="text-2xl mb-3">🔗</div>
-                      <h4 className="font-bold text-lg text-indigo-900 mb-2">URL Safety</h4>
-                      <p className="text-sm text-indigo-700 font-medium">Link verification & archives</p>
-                    </div>
-                  </div>
 
                   {/* Status Message */}
                   <div className="text-lg text-gray-600 font-medium italic bg-gray-50 px-6 py-4 rounded-2xl border border-gray-200">
@@ -952,6 +1013,125 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+              </div>
+            </section>
+          )}
+
+          {/* Chat Interface */}
+          {result && (
+            <section className="mt-8">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-5 lg:p-6 shadow-xl border border-gray-200/50">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl shadow-lg">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">Ask Follow-up Questions</h3>
+                      <p className="text-gray-600">Chat with AI about this verification</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowChat(!showChat)}
+                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-medium hover:shadow-lg hover:scale-105 transition-all duration-200"
+                  >
+                    {showChat ? 'Hide Chat' : 'Start Chat'}
+                  </button>
+                </div>
+
+                {showChat && (
+                  <div className="space-y-4">
+                    {/* Chat Messages */}
+                    <div className="h-96 overflow-y-auto border border-gray-200 rounded-xl p-4 bg-gray-50/50 space-y-4">
+                      {chatMessages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-[80%] p-3 rounded-2xl ${message.role === 'user'
+                              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                              : 'bg-white border border-gray-200 text-gray-900'
+                              }`}
+                          >
+                            <p className="text-sm leading-relaxed">{message.content}</p>
+                            <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                              }`}>
+                              {message.timestamp.toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {chatLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-white border border-gray-200 p-3 rounded-2xl">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                              <span className="text-sm text-gray-500 ml-2">AI is thinking...</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Chat Input */}
+                    <div className="flex gap-3">
+                      <input
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleChatSubmit();
+                          }
+                        }}
+                        placeholder="Ask a follow-up question about this verification..."
+                        className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        disabled={chatLoading}
+                      />
+                      <button
+                        onClick={handleChatSubmit}
+                        disabled={!chatInput.trim() || chatLoading}
+                        className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-medium hover:shadow-lg hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      >
+                        {chatLoading ? (
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Suggested Questions */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">Suggested questions:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          "Can you explain the confidence score?",
+                          "What sources were most reliable?",
+                          "Are there any conflicting reports?",
+                          "What additional evidence would strengthen this?",
+                          "How recent is this information?"
+                        ].map((question, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setChatInput(question)}
+                            className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
+                          >
+                            {question}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           )}
