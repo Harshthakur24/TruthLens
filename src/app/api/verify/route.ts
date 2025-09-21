@@ -560,7 +560,47 @@ function verdictToTruthPercent(label: 'true'|'false'|'uncertain'): number {
     return 50;
 }
 
-async function handleChatMode(question: string, analysisData: any, chatHistory: any[]): Promise<NextResponse> {
+type VerifyResponse = {
+	claim: string;
+	verdict: string;
+	verdictLabel?: 'true' | 'false' | 'uncertain';
+	truthLikelihood?: number;
+	methods?: VerificationMethod[];
+	responses: {
+		provider: string;
+		verdict: string;
+		error?: string;
+	}[];
+	research?: string[];
+	imageAnalysis?: {
+		reverseSearchResults: string[];
+		tineyeResults: string[];
+		metadata?: Record<string, unknown>;
+		deepfakeScore?: number;
+	};
+	urlSafety?: Array<{
+		isSafe: boolean;
+		threats: string[];
+		reputation: 'good' | 'suspicious' | 'malicious';
+		archiveLinks: string[];
+	}>;
+};
+
+type AnalysisData = {
+	claim: string;
+	result: VerifyResponse;
+	timestamp: string;
+	id: string;
+};
+
+type ChatMessage = {
+	id: string;
+	role: 'user' | 'assistant';
+	content: string;
+	timestamp: Date;
+};
+
+async function handleChatMode(question: string, analysisData: AnalysisData, chatHistory: ChatMessage[]): Promise<NextResponse> {
     const CHAT_SYS_PROMPT = `You are a helpful AI assistant that specializes in fact-checking and verification analysis. You have access to a detailed verification report and can answer questions about it.
 
 Your role is to:
@@ -581,21 +621,21 @@ Confidence Score: ${analysisData.result.truthLikelihood || 'N/A'}%
 Final Verdict: ${analysisData.result.verdict || 'No verdict available'}
 
 VERIFICATION METHODS USED:
-${analysisData.result.methods?.map((method: any, i: number) => 
+${analysisData.result.methods?.map((method: VerificationMethod, i: number) => 
   `Method ${i + 1} (${method.method}): ${method.summary}`
 ).join('\n') || 'No methods available'}
 
 SOURCES FOUND:
-${analysisData.result.methods?.map((method: any) => 
-  method.sources?.map((source: any) => 
-    `- ${source.title || source.url} (${source.domain || source.source || 'Unknown'})`
+${analysisData.result.methods?.map((method: VerificationMethod) => 
+  method.sources?.map((source: WebSource | ResearchSource | NewsSource) => 
+    `- ${source.title || source.url} (${'domain' in source ? source.domain : 'source' in source ? source.source : 'Unknown'})`
   ).join('\n') || ''
 ).join('\n') || 'No sources available'}
 `;
 
     // Build chat history context
     const historyContext = chatHistory.length > 0 ? 
-      `\n\nRECENT CONVERSATION:\n${chatHistory.slice(-6).map((msg: any) => 
+      `\n\nRECENT CONVERSATION:\n${chatHistory.slice(-6).map((msg: ChatMessage) => 
         `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
       ).join('\n')}` : '';
 
@@ -610,7 +650,7 @@ ${analysisData.result.methods?.map((method: any) =>
             if (openaiResponse.answer && !openaiResponse.error) {
                 response = openaiResponse.answer;
             }
-        } catch (e) {
+        } catch {
             console.log('OpenAI chat failed, trying Gemini...');
         }
 
@@ -620,7 +660,7 @@ ${analysisData.result.methods?.map((method: any) =>
                 if (geminiResponse.answer && !geminiResponse.error) {
                     response = geminiResponse.answer;
                 }
-            } catch (e) {
+            } catch {
                 console.log('Gemini chat also failed');
             }
         }
@@ -651,8 +691,8 @@ export async function POST(req: NextRequest) {
 		const parsed = await req.json();
 		const claim: string | undefined = parsed && typeof parsed.claim === 'string' ? parsed.claim : undefined;
 		const chatMode: boolean = parsed?.chatMode === true;
-		const analysisData: any = parsed?.analysisData;
-		const chatHistory: any[] = parsed?.chatHistory || [];
+		const analysisData: AnalysisData | undefined = parsed?.analysisData;
+		const chatHistory: ChatMessage[] = parsed?.chatHistory || [];
 		let images: ImagePayload = undefined;
 		if (Array.isArray(parsed?.images)) {
 			images = (parsed.images as unknown[])
