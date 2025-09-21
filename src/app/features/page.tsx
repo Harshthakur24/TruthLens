@@ -1,5 +1,6 @@
 "use client";
-import { Shield, Search, Globe, BookOpen, Newspaper, Image, Link, CheckCircle, Sparkles, Users, Zap, Lock } from "lucide-react";
+import { Shield, Search, Globe, BookOpen, Newspaper, Image, Link as LinkIcon, CheckCircle, Sparkles, Users, Zap, Lock } from "lucide-react";
+import Link from "next/link";
 
 export default function Features() {
     const features = [
@@ -40,7 +41,7 @@ export default function Features() {
             color: "from-pink-500 to-rose-600"
         },
         {
-            icon: <Link className="w-8 h-8" />,
+            icon: <LinkIcon className="w-8 h-8" />,
             title: "URL Safety Check",
             description: "Verifies link safety, checks for malware, and provides archive.org historical versions.",
             color: "from-cyan-500 to-blue-600"
@@ -92,9 +93,9 @@ export default function Features() {
                             </div>
                         </div>
                         <nav className="flex items-center gap-6">
-                            <a href="/" className="text-gray-600 hover:text-gray-900 font-medium">Home</a>
-                            <a href="/features" className="text-black font-bold">Features</a>
-                            <a href="/how-it-works" className="text-gray-600 hover:text-gray-900 font-medium">How it Works</a>
+                            <Link href="/" className="text-gray-600 hover:text-gray-900 font-medium">Home</Link>
+                            <Link href="/features" className="text-black font-bold">Features</Link>
+                            <Link href="/how-it-works" className="text-gray-600 hover:text-gray-900 font-medium">How it Works</Link>
                         </nav>
                     </div>
                 </div>
@@ -181,13 +182,13 @@ export default function Features() {
                 <div className="max-w-4xl mx-auto px-6 text-center">
                     <h2 className="text-3xl font-bold text-white mb-4">Ready to Verify the Truth?</h2>
                     <p className="text-xl text-blue-100 mb-8">Start fact-checking claims with our comprehensive verification system</p>
-                    <a
+                    <Link
                         href="/"
                         className="inline-flex items-center gap-2 px-8 py-4 bg-white text-blue-600 rounded-xl font-bold hover:bg-gray-100 transition-colors"
                     >
                         <Sparkles className="w-5 h-5" />
                         Try TruthLens Now
-                    </a>
+                    </Link>
                 </div>
             </section>
 

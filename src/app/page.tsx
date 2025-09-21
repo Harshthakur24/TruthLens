@@ -55,7 +55,7 @@ type VerifyResponse = {
   imageAnalysis?: {
     reverseSearchResults: string[];
     tineyeResults: string[];
-    metadata?: any;
+    metadata?: Record<string, unknown>;
     deepfakeScore?: number;
   };
   urlSafety?: Array<{
@@ -549,7 +549,7 @@ export default function Home() {
 
                   {/* Status Message */}
                   <div className="text-lg text-gray-600 font-medium italic bg-gray-50 px-6 py-4 rounded-2xl border border-gray-200">
-                    "Analyzing sources across multiple databases..."
+                    &ldquo;Analyzing sources across multiple databases...&rdquo;
                   </div>
                 </div>
               </div>
