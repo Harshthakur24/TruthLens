@@ -36,6 +36,18 @@ type VerificationMethod = {
 	confidence: number;
 };
 
+type ToolName = 'llm' | 'wikipedia' | 'web' | 'research' | 'news' | 'image' | 'url';
+type ToolPlan = {
+    difficulty: 'trivial' | 'simple' | 'moderate' | 'complex' | 'contentious';
+    useTools: Partial<Record<ToolName, boolean>>;
+    limits: {
+        scrapeLimit?: number;
+        researchLimit?: number;
+        newsLimit?: number;
+        wikipediaLimit?: number;
+    };
+    rationale: string;
+};
 type NewsSource = {
 	title: string;
 	description: string;
@@ -212,6 +224,42 @@ async function callGrok(claim: string): Promise<ProviderResponse> {
 }
 
 // --- Web Scraping & Research Functions ---
+async function planToolsForClaim(claim: string): Promise<ToolPlan> {
+    // Fast heuristic with optional LLM assistance later
+    const length = claim.trim().length;
+    const hasNumbers = /\d/.test(claim);
+    const hasUrl = /https?:\/\//i.test(claim);
+    const isOpinion = /(i think|should|best|better|worse|opinion|believe)/i.test(claim);
+    const isBreakingNews = /(today|yesterday|breaking|just\s+announced|recently)/i.test(claim);
+    const namedEntities = (claim.match(/[A-Z][a-z]+\s+[A-Z][a-z]+/g) || []).length;
+
+    let difficulty: ToolPlan['difficulty'] = 'simple';
+    if (isOpinion) difficulty = 'trivial';
+    else if (length < 60 && !hasNumbers && namedEntities === 0) difficulty = 'simple';
+    else if (hasUrl) difficulty = 'moderate';
+    else if (hasNumbers || namedEntities > 0) difficulty = 'moderate';
+    if (isBreakingNews) difficulty = 'complex';
+
+    const useTools: ToolPlan['useTools'] = {
+        llm: true,
+        wikipedia: difficulty !== 'trivial',
+        web: difficulty === 'moderate' || difficulty === 'complex',
+        research: hasNumbers || /study|evidence|risk|efficacy|trial|statistic/i.test(claim),
+        news: isBreakingNews || namedEntities > 0,
+        image: false,
+        url: hasUrl
+    };
+
+    const limits: ToolPlan['limits'] = {
+        wikipediaLimit: difficulty === 'simple' ? 1 : 3,
+        scrapeLimit: difficulty === 'simple' ? 2 : difficulty === 'moderate' ? 5 : 8,
+        researchLimit: difficulty === 'moderate' ? 5 : 8,
+        newsLimit: isBreakingNews ? 10 : 5,
+    };
+
+    const rationale = 'Heuristic plan based on claim structure, recency cues, and presence of numbers/URLs.';
+    return { difficulty, useTools, limits, rationale };
+}
 function extractUrls(text: string): string[] {
     const urlRegex = /https?:\/\/[\w.-]+(?:\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]*)?/gi;
     const found = (text || '').match(urlRegex) || [];
@@ -253,8 +301,8 @@ async function scrapeWebContent(url: string): Promise<WebSource | null> {
 }
 
 function getDomainReliability(domain: string): 'high' | 'medium' | 'low' {
-    const highReliability = ['.gov', '.edu', 'nasa.gov', 'who.int', 'cdc.gov', 'reuters.com', 'bbc.com', 'ap.org', 'snopes.com', 'factcheck.org'];
-    const mediumReliability = ['cnn.com', 'nytimes.com', 'washingtonpost.com', 'theguardian.com', 'wsj.com'];
+    const highReliability = ['.gov', '.edu', 'nasa.gov', 'who.int', 'cdc.gov', 'reuters.com', 'bbc.com', 'ap.org', 'snopes.com', 'factcheck.org', 'wikipedia.org', 'wikidata.org', 'britannica.com'];
+    const mediumReliability = ['cnn.com', 'nytimes.com', 'washingtonpost.com', 'theguardian.com', 'wsj.com', 'nature.com', 'science.org'];
     
     if (highReliability.some(d => domain.includes(d))) return 'high';
     if (mediumReliability.some(d => domain.includes(d))) return 'medium';
@@ -507,6 +555,47 @@ async function analyzeImages(images: ImagePayload): Promise<ImageAnalysis> {
     }
 }
 
+// Wikipedia search and summary fetch
+async function searchWikipedia(query: string): Promise<WebSource[]> {
+    try {
+        const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&utf8=1&srlimit=3`;
+        const searchRes = await withTimeout(fetch(searchUrl), 10000);
+        if (!searchRes.ok) return [];
+        const searchData = await searchRes.json();
+
+        const pages: Array<{ pageid: number; title: string }> = (searchData?.query?.search || []).map((s: Record<string, unknown>) => ({
+            pageid: Number((s as Record<string, unknown>).pageid || 0),
+            title: String((s as Record<string, unknown>).title || ''),
+        })).filter((p: { pageid: number; title: string }) => p.pageid > 0);
+
+        if (pages.length === 0) return [];
+
+        const ids = pages.map(p => p.pageid).join('|');
+        const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&pageids=${ids}&format=json&utf8=1`;
+        const extractRes = await withTimeout(fetch(extractUrl), 10000);
+        if (!extractRes.ok) return [];
+        const extractData = await extractRes.json();
+
+        const results: WebSource[] = [];
+        for (const page of pages) {
+            const pageData = extractData?.query?.pages?.[String(page.pageid)];
+            const extract: string = String(pageData?.extract || '');
+            const url = `https://en.wikipedia.org/?curid=${page.pageid}`;
+            results.push({
+                url,
+                title: page.title,
+                content: extract.substring(0, 1000),
+                domain: 'en.wikipedia.org',
+                reliability: 'high'
+            });
+        }
+        return results;
+    } catch (e) {
+        console.error('Wikipedia search error:', e);
+        return [];
+    }
+}
+
 async function researchWithPerplexity(claim: string): Promise<string[]> {
     const apiKey = process.env.PPLX_API_KEY || process.env.PERPLEXITY_API_KEY;
     if (!apiKey) return [];
@@ -693,6 +782,7 @@ export async function POST(req: NextRequest) {
 		const chatMode: boolean = parsed?.chatMode === true;
 		const analysisData: AnalysisData | undefined = parsed?.analysisData;
 		const chatHistory: ChatMessage[] = parsed?.chatHistory || [];
+        const agentic: boolean = parsed?.agentic !== false && (process.env.AGENTIC_MODE !== 'false');
 		let images: ImagePayload = undefined;
 		if (Array.isArray(parsed?.images)) {
 			images = (parsed.images as unknown[])
@@ -714,16 +804,23 @@ export async function POST(req: NextRequest) {
 			return await handleChatMode(claim, analysisData, chatHistory);
 		}
 
-		console.log('Starting 6-method verification for claim:', claim);
+		console.log(agentic ? 'Starting agentic verification for claim:' : 'Starting 6-method verification for claim:', claim);
+		const toolPlan = agentic ? await planToolsForClaim(claim) : {
+            difficulty: 'moderate',
+            useTools: { llm: true, wikipedia: true, web: true, research: true, news: true, image: !!images?.length, url: extractUrls(claim).length > 0 },
+            limits: { wikipediaLimit: 2, scrapeLimit: 5, researchLimit: 6, newsLimit: 6 },
+            rationale: 'Default non-agentic plan'
+        } as ToolPlan;
+		console.log('Tool plan:', toolPlan);
 
 		// METHOD 1: LLM Analysis
 		console.log('Method 1: LLM Analysis...');
-		const llmResponses = await Promise.all([
+		const llmResponses = toolPlan.useTools.llm ? await Promise.all([
 			callOpenAI(claim),
 			callPerplexity(claim),
 			callGrok(claim),
 			callGemini(claim, undefined, images)
-		]);
+		]) : [];
 
 		const validLlmResponses = llmResponses.filter(r => r.answer && !r.error);
 		const llmMethod: VerificationMethod = {
@@ -735,11 +832,21 @@ export async function POST(req: NextRequest) {
 
 		// METHOD 2: Web Scraping & Authoritative Sources
 		console.log('Method 2: Web Scraping...');
-		const researchUrls = await researchWithPerplexity(claim).catch(() => []);
+		const researchUrls = toolPlan.useTools.web ? await researchWithPerplexity(claim).catch(() => []) : [];
 		const webSources: WebSource[] = [];
+		// Add Wikipedia summaries first (bounded)
+		if (toolPlan.useTools.wikipedia) {
+			try {
+				const wiki = await searchWikipedia(claim);
+				for (const w of wiki.slice(0, toolPlan.limits.wikipediaLimit || 2)) webSources.push(w);
+			} catch (e) {
+				console.error('Wikipedia integration failed:', e);
+			}
+		}
 		
 		// Scrape top URLs in parallel (limit to 5 for performance)
-		const scrapePromises = researchUrls.slice(0, 5).map(url => scrapeWebContent(url));
+		const scrapeLimit = toolPlan.limits.scrapeLimit || 5;
+		const scrapePromises = researchUrls.slice(0, scrapeLimit).map(url => scrapeWebContent(url));
 		const scrapedResults = await Promise.all(scrapePromises);
 		scrapedResults.forEach(result => {
 			if (result) webSources.push(result);
@@ -754,7 +861,7 @@ export async function POST(req: NextRequest) {
 
 		// METHOD 3: Research Papers & Academic Sources
 		console.log('Method 3: Research Papers...');
-		const researchSources = await searchResearchPapers(claim);
+		const researchSources = toolPlan.useTools.research ? await searchResearchPapers(claim) : [];
 		
 		const researchMethod: VerificationMethod = {
 			method: 'research',
@@ -765,7 +872,7 @@ export async function POST(req: NextRequest) {
 
 		// METHOD 4: News API Verification
 		console.log('Method 4: News Sources...');
-		const newsSources = await searchNewsAPI(claim);
+		const newsSources = toolPlan.useTools.news ? await searchNewsAPI(claim) : [];
 		console.log('News sources found:', newsSources.length);
 		console.log('News sources data:', JSON.stringify(newsSources, null, 2));
 		
@@ -779,7 +886,7 @@ export async function POST(req: NextRequest) {
 
 		// METHOD 5: Image Analysis (if images provided)
 		console.log('Method 5: Image Analysis...');
-		const imageAnalysis = await analyzeImages(images);
+		const imageAnalysis = toolPlan.useTools.image ? await analyzeImages(images) : { reverseSearchResults: [], tineyeResults: [], metadata: undefined, deepfakeScore: 0 };
 		
 		const imageMethod: VerificationMethod = {
 			method: 'image',
@@ -791,7 +898,30 @@ export async function POST(req: NextRequest) {
 		// METHOD 6: URL Safety Check (if URLs found in claim)
 		console.log('Method 6: URL Safety...');
 		const urlsInClaim = extractUrls(claim);
-		const urlSafetyChecks = await Promise.all(urlsInClaim.map(url => checkURLSafety(url)));
+		const urlSafetyChecks = toolPlan.useTools.url ? await Promise.all(urlsInClaim.map(url => checkURLSafety(url))) : [];
+
+		// Early exit for trivial/simple claims when LLM is confident
+		if (agentic && (toolPlan.difficulty === 'trivial' || toolPlan.difficulty === 'simple')) {
+			const combined = (llmResponses || []).map(r => r.answer).join('\n');
+			const prelimLabel = normalizeVerdictLabel(combined);
+			const prelimTruth = verdictToTruthPercent(prelimLabel);
+			if (prelimTruth >= 90 || prelimTruth <= 10) {
+				const methodsEarly = [
+					{ method: 'llm', sources: [], summary: (llmResponses || []).map(r => `${r.provider}: ${r.answer}`).join('\n\n'), confidence: 90 }
+				] as VerificationMethod[];
+				return NextResponse.json({
+					claim,
+					verdict: combined.substring(0, 600),
+					verdictLabel: prelimLabel,
+					truthLikelihood: prelimTruth,
+					methods: methodsEarly,
+					responses: (llmResponses || []).map(r => ({ provider: r.provider, verdict: r.answer || 'No response', error: r.error })),
+					research: [],
+					imageAnalysis: imageAnalysis,
+					urlSafety: []
+				}, { status: 200 });
+			}
+		}
 		
 		const urlMethod: VerificationMethod = {
 			method: 'url',
