@@ -260,6 +260,92 @@ async function planToolsForClaim(claim: string): Promise<ToolPlan> {
     const rationale = 'Heuristic plan based on claim structure, recency cues, and presence of numbers/URLs.';
     return { difficulty, useTools, limits, rationale };
 }
+
+async function planToolsForClaimLLM(claim: string): Promise<ToolPlan | null> {
+    const apiKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (!apiKey) return null;
+
+    const system = `You are a planning assistant. Output ONLY a JSON object with keys: difficulty, useTools, limits, rationale.
+Allowed difficulty: "trivial" | "simple" | "moderate" | "complex" | "contentious".
+useTools keys: llm, wikipedia, web, research, news, image, url (boolean each).
+limits keys: wikipediaLimit, scrapeLimit, researchLimit, newsLimit (numbers). Do not exceed wikipediaLimit<=4, scrapeLimit<=8, researchLimit<=10, newsLimit<=10.`;
+
+    const user = `Claim: ${claim}\nPlan tools conservatively. Disable tools that are unnecessary.`;
+
+    try {
+        // Prefer OpenAI if available, else Gemini
+        if (process.env.OPENAI_API_KEY) {
+            const res = await withTimeout(fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.OPENAI_API_KEY },
+                body: JSON.stringify({
+                    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+                    messages: [ { role: 'system', content: system }, { role: 'user', content: user } ],
+                    temperature: 0
+                })
+            }), 20000);
+            const data = await res.json();
+            const raw = data?.choices?.[0]?.message?.content || '';
+            const jsonStart = raw.indexOf('{');
+            const jsonEnd = raw.lastIndexOf('}');
+            if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                const obj = JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
+                return sanitizeToolPlan(obj);
+            }
+        } else {
+            const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+            const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
+            const res = await withTimeout(fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-goog-api-key': process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY as string },
+                body: JSON.stringify({ contents: [ { role: 'user', parts: [ { text: system + '\n\n' + user } ] } ], generationConfig: { temperature: 0 } })
+            }), 20000);
+            const data = await res.json();
+            const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const jsonStart = raw.indexOf('{');
+            const jsonEnd = raw.lastIndexOf('}');
+            if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                const obj = JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
+                return sanitizeToolPlan(obj);
+            }
+        }
+    } catch (e) {
+        console.error('LLM planner error:', e);
+    }
+    return null;
+}
+
+function sanitizeToolPlan(plan: Record<string, unknown>): ToolPlan {
+    const difficultyValues = ['trivial','simple','moderate','complex','contentious'] as const;
+    const diffRaw = String(plan?.difficulty || 'moderate');
+    const difficulty = (difficultyValues as readonly string[]).includes(diffRaw) ? diffRaw as ToolPlan['difficulty'] : 'moderate';
+
+    const useToolsRaw = (plan?.useTools || {}) as Record<string, unknown>;
+    const useTools: Partial<Record<ToolName, boolean>> = {
+        llm: !!useToolsRaw.llm,
+        wikipedia: !!useToolsRaw.wikipedia,
+        web: !!useToolsRaw.web,
+        research: !!useToolsRaw.research,
+        news: !!useToolsRaw.news,
+        image: !!useToolsRaw.image,
+        url: !!useToolsRaw.url
+    };
+
+    const limitsRaw = (plan?.limits || {}) as Record<string, unknown>;
+    const clamp = (n: unknown, min: number, max: number, d: number) => {
+        const v = typeof n === 'number' ? n : parseFloat(String(n));
+        return isFinite(v) ? Math.max(min, Math.min(max, Math.round(v))) : d;
+    };
+    const limits = {
+        wikipediaLimit: clamp(limitsRaw.wikipediaLimit, 0, 4, 2),
+        scrapeLimit: clamp(limitsRaw.scrapeLimit, 0, 8, 5),
+        researchLimit: clamp(limitsRaw.researchLimit, 0, 10, 6),
+        newsLimit: clamp(limitsRaw.newsLimit, 0, 10, 6)
+    };
+
+    const rationale = String(plan?.rationale || 'LLM generated plan');
+    return { difficulty, useTools, limits, rationale };
+}
 function extractUrls(text: string): string[] {
     const urlRegex = /https?:\/\/[\w.-]+(?:\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]*)?/gi;
     const found = (text || '').match(urlRegex) || [];
@@ -643,10 +729,45 @@ function normalizeVerdictLabel(text: string): 'true' | 'false' | 'uncertain' {
     return 'uncertain';
 }
 
-function verdictToTruthPercent(label: 'true'|'false'|'uncertain'): number {
-    if (label === 'true') return 95;
-    if (label === 'false') return 5;
-    return 50;
+function extractConfidenceFromText(text: string): number | null {
+    if (!text) return null;
+    const matches = Array.from(String(text).matchAll(/(\b\d{1,3})\s?%/g));
+    if (!matches.length) return null;
+    const nums = matches.map(m => parseInt(m[1], 10)).filter(n => n >= 0 && n <= 100);
+    if (!nums.length) return null;
+    // Prefer the last percentage in the text assuming it is the final stated confidence
+    return nums[nums.length - 1];
+}
+
+function computeTruthLikelihood(label: 'true'|'false'|'uncertain', methods: VerificationMethod[], consensusText: string): number {
+    // 1) Use explicitly extracted percentage if present
+    const extracted = extractConfidenceFromText(consensusText);
+    if (typeof extracted === 'number') {
+        return Math.min(100, Math.max(0, extracted));
+    }
+
+    // 2) Derive from method confidences
+    const avgMethodConfidence = methods && methods.length > 0 ?
+        methods.reduce((sum, m) => sum + (typeof m.confidence === 'number' ? m.confidence : 0), 0) / methods.length : 50;
+
+    let score: number;
+    if (label === 'true') {
+        // Ensure above 50 leaning with method support
+        score = Math.max(50, avgMethodConfidence);
+    } else if (label === 'false') {
+        // Mirror to the lower side
+        score = 100 - Math.max(50, avgMethodConfidence);
+    } else {
+        // Stay near 50 but allow a small pull from methods
+        score = 50 + (avgMethodConfidence - 50) * 0.25;
+    }
+
+    // 3) Optional env clamps
+    const minEnv = process.env.TRUTH_MIN ? parseFloat(String(process.env.TRUTH_MIN)) : 0;
+    const maxEnv = process.env.TRUTH_MAX ? parseFloat(String(process.env.TRUTH_MAX)) : 100;
+    const min = isFinite(minEnv) ? minEnv : 0;
+    const max = isFinite(maxEnv) ? maxEnv : 100;
+    return Math.min(max, Math.max(min, Math.round(score)));
 }
 
 type VerifyResponse = {
@@ -782,7 +903,8 @@ export async function POST(req: NextRequest) {
 		const chatMode: boolean = parsed?.chatMode === true;
 		const analysisData: AnalysisData | undefined = parsed?.analysisData;
 		const chatHistory: ChatMessage[] = parsed?.chatHistory || [];
-        const agentic: boolean = parsed?.agentic !== false && (process.env.AGENTIC_MODE !== 'false');
+		const agentic: boolean = parsed?.agentic !== false && (process.env.AGENTIC_MODE !== 'false');
+		const agenticEngine: 'heuristic' | 'llm' = (parsed?.agenticEngine || process.env.AGENTIC_ENGINE || 'heuristic') as 'heuristic' | 'llm';
 		let images: ImagePayload = undefined;
 		if (Array.isArray(parsed?.images)) {
 			images = (parsed.images as unknown[])
@@ -805,12 +927,39 @@ export async function POST(req: NextRequest) {
 		}
 
 		console.log(agentic ? 'Starting agentic verification for claim:' : 'Starting 6-method verification for claim:', claim);
-		const toolPlan = agentic ? await planToolsForClaim(claim) : {
+		let toolPlan = agentic ? await planToolsForClaim(claim) : {
             difficulty: 'moderate',
             useTools: { llm: true, wikipedia: true, web: true, research: true, news: true, image: !!images?.length, url: extractUrls(claim).length > 0 },
             limits: { wikipediaLimit: 2, scrapeLimit: 5, researchLimit: 6, newsLimit: 6 },
             rationale: 'Default non-agentic plan'
         } as ToolPlan;
+
+		// If LLM engine requested, attempt LLM planning and merge
+		if (agentic && agenticEngine === 'llm') {
+			const llmPlan = await planToolsForClaimLLM(claim);
+			if (llmPlan) {
+				// Merge: if LLM disables a tool, respect it; limits = min(heuristic, llm)
+				toolPlan = {
+					difficulty: llmPlan.difficulty || toolPlan.difficulty,
+					useTools: {
+						llm: llmPlan.useTools.llm ?? toolPlan.useTools.llm,
+						wikipedia: llmPlan.useTools.wikipedia ?? toolPlan.useTools.wikipedia,
+						web: llmPlan.useTools.web ?? toolPlan.useTools.web,
+						research: llmPlan.useTools.research ?? toolPlan.useTools.research,
+						news: llmPlan.useTools.news ?? toolPlan.useTools.news,
+						image: (images && images.length > 0) ? true : (llmPlan.useTools.image ?? toolPlan.useTools.image),
+						url: toolPlan.useTools.url // derived from presence of url; keep heuristic guard
+					},
+					limits: {
+						wikipediaLimit: Math.min(toolPlan.limits.wikipediaLimit || 2, llmPlan.limits.wikipediaLimit || 2),
+						scrapeLimit: Math.min(toolPlan.limits.scrapeLimit || 5, llmPlan.limits.scrapeLimit || 5),
+						researchLimit: Math.min(toolPlan.limits.researchLimit || 6, llmPlan.limits.researchLimit || 6),
+						newsLimit: Math.min(toolPlan.limits.newsLimit || 6, llmPlan.limits.newsLimit || 6)
+					},
+					rationale: `${toolPlan.rationale} + LLM refined: ${llmPlan.rationale}`
+				};
+			}
+		}
 		console.log('Tool plan:', toolPlan);
 
 		// METHOD 1: LLM Analysis
@@ -904,7 +1053,7 @@ export async function POST(req: NextRequest) {
 		if (agentic && (toolPlan.difficulty === 'trivial' || toolPlan.difficulty === 'simple')) {
 			const combined = (llmResponses || []).map(r => r.answer).join('\n');
 			const prelimLabel = normalizeVerdictLabel(combined);
-			const prelimTruth = verdictToTruthPercent(prelimLabel);
+			const prelimTruth = computeTruthLikelihood(prelimLabel, [{ method: 'llm', sources: [], summary: combined, confidence: 90 }], combined);
 			if (prelimTruth >= 90 || prelimTruth <= 10) {
 				const methodsEarly = [
 					{ method: 'llm', sources: [], summary: (llmResponses || []).map(r => `${r.provider}: ${r.answer}`).join('\n\n'), confidence: 90 }
@@ -951,7 +1100,7 @@ Provide a final verdict (true/false/uncertain) with confidence level and explana
 		const consensusResponse = await callGemini(consensusPrompt, undefined, images);
 
 		const label = normalizeVerdictLabel(consensusResponse.answer || finalConsensus.answer || '');
-		const truth = verdictToTruthPercent(label);
+		const truth = computeTruthLikelihood(label, activeMethods, consensusResponse.answer || finalConsensus.answer || '');
 
 		console.log('Verification completed:', { label, truth });
 		console.log('Active methods:', activeMethods.map(m => ({ method: m.method, sourcesCount: m.sources.length })));
