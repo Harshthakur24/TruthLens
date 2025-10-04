@@ -395,7 +395,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-8 mt-6">
             Verify Facts or News with
             <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
               AI Precision
