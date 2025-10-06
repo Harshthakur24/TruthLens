@@ -896,8 +896,80 @@ ${analysisData.result.methods?.map((method: VerificationMethod) =>
     }
 }
 
+// Simple in-memory rate limiting (in production, use Redis or database)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(apiKey: string | null, isPro: boolean = false, request?: NextRequest): { allowed: boolean; remaining: number; resetTime: number } {
+	const now = Date.now();
+	const windowMs = 60 * 1000; // 1 minute window
+	const maxRequests = isPro ? 100 : 10; // Pro: 100/min, Free: 10/min
+	
+	if (!apiKey) {
+		// No API key - use IP-based rate limiting
+		const ip = request?.headers.get('x-forwarded-for') || request?.headers.get('x-real-ip') || 'unknown';
+		const key = `ip:${ip}`;
+		
+		const current = rateLimitMap.get(key) || { count: 0, resetTime: now + windowMs };
+		
+		if (now > current.resetTime) {
+			current.count = 0;
+			current.resetTime = now + windowMs;
+		}
+		
+		if (current.count >= 5) { // 5 requests per minute for no API key
+			return { allowed: false, remaining: 0, resetTime: current.resetTime };
+		}
+		
+		current.count++;
+		rateLimitMap.set(key, current);
+		
+		return { allowed: true, remaining: 5 - current.count, resetTime: current.resetTime };
+	}
+	
+	const key = `api:${apiKey}`;
+	const current = rateLimitMap.get(key) || { count: 0, resetTime: now + windowMs };
+	
+	if (now > current.resetTime) {
+		current.count = 0;
+		current.resetTime = now + windowMs;
+	}
+	
+	if (current.count >= maxRequests) {
+		return { allowed: false, remaining: 0, resetTime: current.resetTime };
+	}
+	
+	current.count++;
+	rateLimitMap.set(key, current);
+	
+	return { allowed: true, remaining: maxRequests - current.count, resetTime: current.resetTime };
+}
+
 export async function POST(req: NextRequest) {
 	try {
+		// Check rate limiting
+		const apiKey = req.headers.get('authorization')?.replace('Bearer ', '');
+		const isPro = Boolean(apiKey && apiKey.startsWith('pk_pro_')); // Simple pro key check
+		
+		const rateLimit = checkRateLimit(apiKey || null, isPro, req);
+		
+		if (!rateLimit.allowed) {
+			return NextResponse.json(
+				{ 
+					error: 'rate_limit_exceeded', 
+					detail: 'Too many requests. Please try again later.',
+					resetTime: rateLimit.resetTime 
+				}, 
+				{ 
+					status: 429,
+					headers: {
+						'X-RateLimit-Limit': isPro ? '100' : '10',
+						'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+						'X-RateLimit-Reset': rateLimit.resetTime.toString()
+					}
+				}
+			);
+		}
+		
 		const parsed = await req.json();
 		const claim: string | undefined = parsed && typeof parsed.claim === 'string' ? parsed.claim : undefined;
 		const chatMode: boolean = parsed?.chatMode === true;
@@ -1119,7 +1191,14 @@ Provide a final verdict (true/false/uncertain) with confidence level and explana
 			research: researchUrls,
 			imageAnalysis: imageAnalysis,
 			urlSafety: urlSafetyChecks
-		}, { status: 200 });
+		}, { 
+			status: 200,
+			headers: {
+				'X-RateLimit-Limit': isPro ? '100' : '10',
+				'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+				'X-RateLimit-Reset': rateLimit.resetTime.toString()
+			}
+		});
 	} catch (e: unknown) {
 		console.error('Verification error:', e);
 		const detail = e instanceof Error ? e.message : 'error';
