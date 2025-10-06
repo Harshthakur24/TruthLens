@@ -623,12 +623,20 @@ async function analyzeImages(images: ImagePayload): Promise<ImageAnalysis> {
     
     try {
         const reverseSearchResults = await reverseImageSearch();
-        
+
+        let deepfakeScore = 0;
+        try {
+            deepfakeScore = await detectDeepfake(images[0].data, images[0].mimeType);
+        } catch (e) {
+            console.error('Deepfake detection error:', e);
+            // Keep score at 0 if Gemini call fails
+        }
+
         return {
             reverseSearchResults,
             tineyeResults: [], // Would integrate TinEye API here
             metadata: undefined, // Would extract EXIF data here
-            deepfakeScore: Math.random() * 100 // Mock deepfake detection
+            deepfakeScore
         };
     } catch (e) {
         console.error('Image analysis error:', e);
@@ -638,6 +646,76 @@ async function analyzeImages(images: ImagePayload): Promise<ImageAnalysis> {
             metadata: undefined,
             deepfakeScore: 0
         };
+    }
+}
+
+// Detect deepfakes using Gemini's vision capabilities
+async function detectDeepfake(base64Image: string, mimeType: string): Promise<number> {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+        throw new Error('Gemini API key not configured (GEMINI_API_KEY or GOOGLE_API_KEY).');
+    }
+
+    const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+    const prompt = `Analyze this image for signs of AI generation, deepfakes, or digital manipulation. Look for:
+- Unnatural facial features or proportions
+- Inconsistent lighting or shadows
+- Artifacts around edges or textures
+- Unrealistic details or patterns
+- Signs of AI generation
+
+Provide a confidence score from 0-100 where:
+- 0-30: Likely authentic/real
+- 31-70: Uncertain, some suspicious elements
+- 71-100: Likely fake/AI-generated
+
+Respond with ONLY a number between 0-100, no other text.`;
+
+    try {
+        const res = await withTimeout(fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-goog-api-key': apiKey
+            },
+            body: JSON.stringify({
+                contents: [{
+                    role: 'user',
+                    parts: [
+                        { text: prompt },
+                        { inline_data: { mime_type: mimeType, data: base64Image } }
+                    ]
+                }],
+                generationConfig: { temperature: 0.1 }
+            })
+        }), 25000);
+
+        const data = await res.json();
+        const response = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        
+        if (!response) {
+            throw new Error('No response from Gemini');
+        }
+
+        // Extract number from response
+        const score = parseFloat(response);
+        if (isFinite(score) && score >= 0 && score <= 100) {
+            return Math.round(score);
+        }
+
+        // If response contains text with a number, try to extract it
+        const numberMatch = response.match(/(\d+(?:\.\d+)?)/);
+        if (numberMatch) {
+            const extracted = parseFloat(numberMatch[1]);
+            return Math.round(Math.min(100, Math.max(0, extracted)));
+        }
+
+        throw new Error('Could not extract valid score from Gemini response');
+    } catch (e) {
+        console.error('Gemini deepfake detection error:', e);
+        throw e;
     }
 }
 
