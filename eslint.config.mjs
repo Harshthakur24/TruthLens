@@ -21,7 +21,7 @@ const eslintConfig = [
     ],
   },
   {
-    files: ["src/app/api/auth/**/*.ts"],
+    files: ["src/app/api/**/*.ts"],
     rules: {
       "@next/next/no-duplicate-head": "off",
       "@typescript-eslint/no-explicit-any": "off",
