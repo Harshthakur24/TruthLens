@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Shield, Code, Zap, CheckCircle, ExternalLink, Copy, CreditCard, Star, Globe, Database, Cpu, MessageSquare, Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useSession, signIn } from "next-auth/react";
+import Link from "next/link";
 
 export default function APIDocs() {
     const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro'>('free');
@@ -798,13 +799,13 @@ print(f"Confidence: {result['truthLikelihood']}%")`)}
                                         <br />    <span className="text-blue-400">if</span> <span className="text-purple-400">image_path</span><span className="text-gray-300">:</span>
                                         <br />        <span className="text-blue-400">with</span> <span className="text-green-400">open</span><span className="text-gray-300">(</span><span className="text-purple-400">image_path</span><span className="text-gray-300">,</span> <span className="text-orange-400">'rb'</span><span className="text-gray-300">)</span> <span className="text-blue-400">as</span> <span className="text-purple-400">f</span><span className="text-gray-300">:</span>
                                         <br />            <span className="text-purple-400">image_data</span> <span className="text-gray-300">=</span> <span className="text-yellow-400">base64</span><span className="text-gray-300">.</span><span className="text-green-400">b64encode</span><span className="text-gray-300">(</span><span className="text-purple-400">f</span><span className="text-gray-300">.</span><span className="text-green-400">read</span><span className="text-gray-300">()).</span><span className="text-green-400">decode</span><span className="text-gray-300">()</span>
-                                        <br />            <span className="text-purple-400">data</span><span className="text-gray-300">[</span><span className="text-orange-400">'images'</span><span className="text-gray-300">]</span> <span className="text-gray-300">= [</span><span className="text-gray-300">{"{"}</span>
-                                        <br />                <span className="text-orange-400">'mimeType'</span><span className="text-gray-300">:</span> <span className="text-orange-400">'image/jpeg'</span><span className="text-gray-300">,</span>
-                                        <br />                <span className="text-orange-400">'data'</span><span className="text-gray-300">:</span> <span className="text-purple-400">image_data</span>
+                                        <br />            <span className="text-purple-400">data</span><span className="text-gray-300">[</span><span className="text-orange-400">&apos;images&apos;</span><span className="text-gray-300">]</span> <span className="text-gray-300">= [</span><span className="text-gray-300">{"{"}</span>
+                                        <br />                <span className="text-orange-400">&apos;mimeType&apos;</span><span className="text-gray-300">:</span> <span className="text-orange-400">&apos;image/jpeg&apos;</span><span className="text-gray-300">,</span>
+                                        <br />                <span className="text-orange-400">&apos;data&apos;</span><span className="text-gray-300">:</span> <span className="text-purple-400">image_data</span>
                                         <br />            <span className="text-gray-300">{"}"}</span><span className="text-gray-300">]</span>
                                         <br />
                                         <br />    <span className="text-purple-400">response</span> <span className="text-gray-300">=</span> <span className="text-yellow-400">requests</span><span className="text-gray-300">.</span><span className="text-green-400">post</span><span className="text-gray-300">(</span>
-                                        <br />        <span className="text-orange-400">'https://truthlens.com/api/verify'</span><span className="text-gray-300">,</span>
+                                        <br />        <span className="text-orange-400">&apos;https://truthlens.com/api/verify&apos;</span><span className="text-gray-300">,</span>
                                         <br />        <span className="text-purple-400">headers</span><span className="text-gray-300">=</span><span className="text-purple-400">headers</span><span className="text-gray-300">,</span>
                                         <br />        <span className="text-purple-400">json</span><span className="text-gray-300">=</span><span className="text-purple-400">data</span>
                                         <br />    <span className="text-gray-300">)</span>
@@ -812,9 +813,9 @@ print(f"Confidence: {result['truthLikelihood']}%")`)}
                                         <br />    <span className="text-blue-400">return</span> <span className="text-purple-400">response</span><span className="text-gray-300">.</span><span className="text-green-400">json</span><span className="text-gray-300">()</span>
                                         <br />
                                         <br /><span className="text-gray-500"># Usage</span>
-                                        <br /><span className="text-purple-400">result</span> <span className="text-gray-300">=</span> <span className="text-green-400">verify_claim</span><span className="text-gray-300">(</span><span className="text-orange-400">"Your claim here"</span><span className="text-gray-300">)</span>
-                                        <br /><span className="text-green-400">print</span><span className="text-gray-300">(</span><span className="text-orange-400">f"Verdict: </span><span className="text-gray-300">{"{result['verdictLabel']}"}</span><span className="text-orange-400">"</span><span className="text-gray-300">)</span>
-                                        <br /><span className="text-green-400">print</span><span className="text-gray-300">(</span><span className="text-orange-400">f"Confidence: </span><span className="text-gray-300">{"{result['truthLikelihood']}"}</span><span className="text-orange-400">%"</span><span className="text-gray-300">)</span>
+                                        <br /><span className="text-purple-400">result</span> <span className="text-gray-300">=</span> <span className="text-green-400">verify_claim</span><span className="text-gray-300">(</span><span className="text-orange-400">&quot;Your claim here&quot;</span><span className="text-gray-300">)</span>
+                                        <br /><span className="text-green-400">print</span><span className="text-gray-300">(</span><span className="text-orange-400">f&quot;Verdict: </span><span className="text-gray-300">{"{result['verdictLabel']}"}</span><span className="text-orange-400">&quot;</span><span className="text-gray-300">)</span>
+                                        <br /><span className="text-green-400">print</span><span className="text-gray-300">(</span><span className="text-orange-400">f&quot;Confidence: </span><span className="text-gray-300">{"{result['truthLikelihood']}"}</span><span className="text-orange-400">%&quot;</span><span className="text-gray-300">)</span>
                                     </pre>
                                 </div>
                             </div>
@@ -841,7 +842,7 @@ print(f"Confidence: {result['truthLikelihood']}%")`)}
                         <div>
                             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Resources</h3>
                             <ul className="space-y-3">
-                                <li><a href="/" className="text-gray-600 hover:text-gray-900 transition-colors">Home</a></li>
+                                <li><Link href="/" className="text-gray-600 hover:text-gray-900 transition-colors">Home</Link></li>
                                 <li><a href="/features" className="text-gray-600 hover:text-gray-900 transition-colors">Features</a></li>
                                 <li><a href="#" className="text-gray-600 hover:text-gray-900 transition-colors">Documentation</a></li>
                                 <li><a href="#" className="text-gray-600 hover:text-gray-900 transition-colors">Status</a></li>

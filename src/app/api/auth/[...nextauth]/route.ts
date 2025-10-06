@@ -17,7 +17,7 @@ const handler = NextAuth({
     },
   },
   pages: {
-    signIn: '/api-docs', // Redirect to API docs after auth
+    signIn: '/api-docs',
   },
   secret: process.env.NEXTAUTH_SECRET,
 });
