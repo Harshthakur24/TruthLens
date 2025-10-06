@@ -12,7 +12,7 @@ const handler = NextAuth({
     async session({ session, token }) {
       return session;
     },
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account }) {
       return token;
     },
   },

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Shield, Code, Zap, CheckCircle, ExternalLink, Copy, CreditCard, Star, Globe, Database, Cpu, MessageSquare, Loader2 } from "lucide-react";
+import { Shield, Code, Zap, CheckCircle, Copy, CreditCard, Star, Globe, Database, Cpu, MessageSquare, Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useSession, signIn } from "next-auth/react";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import Link from "next/link";
 export default function APIDocs() {
     const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro'>('free');
     const [paymentLoading, setPaymentLoading] = useState(false);
-    const { data: session, status } = useSession();
+    const { data: session } = useSession();
 
     const handlePayment = async () => {
         setPaymentLoading(true);
@@ -182,8 +182,8 @@ export default function APIDocs() {
                             </div>
                         </div>
                         <nav className="hidden md:flex items-center gap-8 text-sm">
-                            <a className="relative font-medium text-gray-600 hover:text-gray-900 transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-0.5 after:w-0 after:bg-gradient-to-r after:from-blue-600 after:to-purple-600 after:transition-all hover:after:w-full" href="/">Home</a>
-                            <a className="relative font-medium text-gray-600 hover:text-gray-900 transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-0.5 after:w-0 after:bg-gradient-to-r after:from-blue-600 after:to-purple-600 after:transition-all hover:after:w-full" href="/features">Features</a>
+                            <Link className="relative font-medium text-gray-600 hover:text-gray-900 transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-0.5 after:w-0 after:bg-gradient-to-r after:from-blue-600 after:to-purple-600 after:transition-all hover:after:w-full" href="/">Home</Link>
+                            <Link className="relative font-medium text-gray-600 hover:text-gray-900 transition-colors after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-0.5 after:w-0 after:bg-gradient-to-r after:from-blue-600 after:to-purple-600 after:transition-all hover:after:w-full" href="/features">Features</Link>
                             <button
                                 onClick={() => {
                                     const pricingSection = document.querySelector('[data-pricing-section]');

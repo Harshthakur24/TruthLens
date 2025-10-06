@@ -554,11 +554,11 @@ function getNewsReliability(source: string): 'high' | 'medium' | 'low' {
     return 'low';
 }
 
-async function reverseImageSearch(_imageData: string): Promise<string[]> {
-    const _apiKey = process.env.GOOGLE_API_KEY;
-    const _searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
+async function reverseImageSearch(): Promise<string[]> {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    const searchEngineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
     
-    if (!_apiKey || !_searchEngineId) return [];
+    if (!apiKey || !searchEngineId) return [];
     
     try {
         // For now, return mock results - in production, you'd use Google Custom Search API with image
@@ -574,7 +574,7 @@ async function reverseImageSearch(_imageData: string): Promise<string[]> {
 }
 
 async function checkURLSafety(url: string): Promise<URLSafety> {
-    const _apiKey = process.env.VIRUSTOTAL_API_KEY;
+    // const apiKey = process.env.VIRUSTOTAL_API_KEY; // Unused for now
     
     try {
         // Check if URL is safe
@@ -622,7 +622,7 @@ async function analyzeImages(images: ImagePayload): Promise<ImageAnalysis> {
     }
     
     try {
-        const reverseSearchResults = await reverseImageSearch(images[0].data);
+        const reverseSearchResults = await reverseImageSearch();
         
         return {
             reverseSearchResults,
