@@ -25,12 +25,23 @@ export default function APIDocs() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
                     customerEmail: session.user.email,
                 }),
             });
 
-            const { sessionId } = await response.json();
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`API Error: ${response.status} - ${errorData.error || 'Unknown error'}`);
+            }
+
+            const data = await response.json();
+            console.log('Stripe API response:', data);
+
+            if (!data.sessionId) {
+                throw new Error('No sessionId returned from Stripe API');
+            }
+
+            console.log('About to redirect to Stripe with sessionId:', data.sessionId);
 
             // Redirect to Stripe Checkout
             const stripe = await import('@stripe/stripe-js').then(({ loadStripe }) =>
@@ -38,7 +49,11 @@ export default function APIDocs() {
             );
 
             if (stripe) {
-                await stripe.redirectToCheckout({ sessionId });
+                const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+                if (error) {
+                    console.error('Stripe redirect error:', error);
+                    toast.error('Failed to redirect to payment: ' + error.message);
+                }
             }
         } catch (error) {
             console.error('Payment error:', error);
