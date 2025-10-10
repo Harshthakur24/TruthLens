@@ -1229,10 +1229,34 @@ export async function POST(req: NextRequest) {
 			confidence: urlSafetyChecks.length > 0 ? Math.min(urlSafetyChecks.filter(u => u.isSafe).length * 25, 100) : 0
 		};
 
-		// FINAL CONSENSUS: Use Gemini to analyze all methods
+		// FINAL CONSENSUS: Use Gemini to analyze all methods with RAG research guidance
 		console.log('Generating final consensus...');
 		const allMethods = [llmMethod, webMethod, researchMethod, newsMethod, imageMethod, urlMethod];
 		const activeMethods = allMethods.filter(m => m.confidence > 0);
+		
+		// Get RAG research guidance for the claim
+		let researchGuidance = '';
+		try {
+			const { spawn } = require('child_process');
+			const python = spawn('python', ['RAG_script/rag_api.py', claim]);
+			
+			let ragOutput = '';
+			python.stdout.on('data', (data: any) => {
+				ragOutput += data.toString();
+			});
+			
+			await new Promise((resolve) => {
+				python.on('close', resolve);
+			});
+			
+			const ragResponse = JSON.parse(ragOutput);
+			if (ragResponse.success && ragResponse.research_guidance) {
+				researchGuidance = `\n\nRESEARCH METHODOLOGY GUIDANCE:\n${ragResponse.research_guidance}`;
+				console.log('RAG guidance retrieved for final verdict');
+			}
+		} catch (error) {
+			console.log('RAG guidance not available:', error);
+		}
 		
 		const consensusPrompt = `Analyze this claim using ${activeMethods.length} verification methods and provide a final verdict:
 
@@ -1241,9 +1265,9 @@ CLAIM: ${claim}
 ${activeMethods.map((method, i) => `
 METHOD ${i + 1} - ${method.method.toUpperCase()}:
 ${method.summary}
-`).join('')}
+`).join('')}${researchGuidance}
 
-Provide a final verdict (true/false/uncertain) with confidence level and explanation. Consider the reliability of each source type.`;
+Provide a final verdict (true/false/uncertain) with confidence level and explanation. Consider the reliability of each source type and apply the research methodology guidance above.`;
 
 		const finalConsensus = await callGemini(claim, undefined, images);
 		// Override the prompt for consensus
